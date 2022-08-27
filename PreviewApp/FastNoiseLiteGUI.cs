@@ -7,6 +7,7 @@ using Eto.Forms;
 
 // Switch between using floats or doubles for input position (Match with FastNoiseLite.cs)
 using FNfloat = System.Single;
+
 //using FNfloat = System.Double;
 
 class Program
@@ -27,6 +28,9 @@ public class FastNoiseLiteGUI : Form
 
     private NumericStepper PreviewWidth;
     private NumericStepper PreviewHeight;
+    private NumericStepper Contrast;
+    private NumericStepper Brightness;
+    private CheckBox AutoLevels;
     private CheckBox Invert;
     private CheckBox Is3D;
     private CheckBox VisualiseDomainWarp;
@@ -70,11 +74,11 @@ public class FastNoiseLiteGUI : Form
     private bool isScrolling = false;
     private float zPos = 0;
     private Size previewStartSize = new Size(768, 768);
-    private Size windowSizeOffset = new Size(334, 52);
+    private Size windowSizeOffset = new Size(334, 128);
 
     public FastNoiseLiteGUI()
     {
-        Title = "FastNoiseLite GUI";
+        Title = "FastNoise Lite GUI";
         Resizable = false;
 
         ImageData = new int[1];
@@ -132,7 +136,7 @@ public class FastNoiseLiteGUI : Form
 
             // Control table
             var table = new TableLayout();
-            table.Spacing = new Size(5, 5);                    
+            table.Spacing = new Size(5, 5);
 
             // Preview controls
             {
@@ -141,16 +145,30 @@ public class FastNoiseLiteGUI : Form
                     var stack = new StackLayout();
                     stack.Orientation = Orientation.Horizontal;
                     stack.Spacing = 2;
-                    PreviewWidth = new NumericStepper { Value = previewStartSize.Width, Increment = 128 };
+                    PreviewWidth = new NumericStepper {Value = previewStartSize.Width, Increment = 128};
                     PreviewWidth.ValueChanged += Generate;
                     stack.Items.Add(new StackLayoutItem(PreviewWidth));
-                    PreviewHeight = new NumericStepper { Value = previewStartSize.Height, Increment = 128 };
+                    PreviewHeight = new NumericStepper {Value = previewStartSize.Height, Increment = 128};
                     PreviewHeight.ValueChanged += Generate;
                     stack.Items.Add(new StackLayoutItem(PreviewHeight));
 
                     AddToTableWithLabel(table, stack, "Preview Size");
                 }
 
+                Brightness = new NumericStepper {Value = 0.0, DecimalPlaces = 2, Increment = 0.1};
+                Brightness.ValueChanged += Generate;
+                AddToTableWithLabel(table, Brightness, "Preview Brightness");
+                
+                Contrast = new NumericStepper {Value = 1.0, DecimalPlaces = 2, Increment = 0.1};
+                Contrast.ValueChanged += Generate;
+                AddToTableWithLabel(table, Contrast, "Preview Contrast");
+                
+                // AutoLevels
+                AutoLevels = new CheckBox();
+                AutoLevels.CheckedChanged += Generate;
+                AutoLevels.CheckedChanged += OnUIUpdate;
+                AddToTableWithLabel(table, AutoLevels, "Auto Level Preview");
+                
                 // Invert
                 Invert = new CheckBox();
                 Invert.CheckedChanged += Generate;
@@ -178,7 +196,8 @@ public class FastNoiseLiteGUI : Form
                     {
                         NoiseType.Items.Add(FormatReadable(name));
                     }
-                    NoiseType.SelectedIndex = (int)FastNoiseLite.NoiseType.OpenSimplex2;
+
+                    NoiseType.SelectedIndex = (int) FastNoiseLite.NoiseType.OpenSimplex2;
                     NoiseType.SelectedIndexChanged += OnUIUpdate;
                     AddToTableWithLabel(table, NoiseType, "Noise Type");
                 }
@@ -190,18 +209,19 @@ public class FastNoiseLiteGUI : Form
                     {
                         RotationType3D.Items.Add(FormatReadable(name));
                     }
-                    RotationType3D.SelectedIndex = (int)FastNoiseLite.RotationType3D.None;
+
+                    RotationType3D.SelectedIndex = (int) FastNoiseLite.RotationType3D.None;
                     RotationType3D.SelectedIndexChanged += OnUIUpdate;
                     AddToTableWithLabel(table, RotationType3D, "Rotation Type 3D");
                 }
 
                 // Seed
-                Seed = new NumericStepper { Value = 1337 };
+                Seed = new NumericStepper {Value = 1337};
                 Seed.ValueChanged += Generate;
                 AddToTableWithLabel(table, Seed, "Seed");
 
                 // Frequency
-                Frequency = new NumericStepper { Value = 0.02, DecimalPlaces = 3, Increment = 0.005 };
+                Frequency = new NumericStepper {Value = 0.02, DecimalPlaces = 3, Increment = 0.005};
                 Frequency.ValueChanged += Generate;
                 AddToTableWithLabel(table, Frequency, "Frequency");
             }
@@ -218,33 +238,34 @@ public class FastNoiseLiteGUI : Form
                         if (name.StartsWith("DomainWarp")) break;
                         FractalType.Items.Add(FormatReadable(name));
                     }
-                    FractalType.SelectedIndex = (int)FastNoiseLite.FractalType.FBm;
+
+                    FractalType.SelectedIndex = (int) FastNoiseLite.FractalType.FBm;
                     FractalType.SelectedIndexChanged += OnUIUpdate;
                     AddToTableWithLabel(table, FractalType, "Type");
                 }
 
                 // Octaves
-                FractalOctaves = new NumericStepper { Value = 5 };
+                FractalOctaves = new NumericStepper {Value = 5};
                 FractalOctaves.ValueChanged += Generate;
                 AddToTableWithLabel(table, FractalOctaves, "Octaves");
 
                 // Lacunarity
-                FractalLacunarity = new NumericStepper { Value = 2.0, DecimalPlaces = 2, Increment = 0.1 };
+                FractalLacunarity = new NumericStepper {Value = 2.0, DecimalPlaces = 2, Increment = 0.1};
                 FractalLacunarity.ValueChanged += Generate;
                 AddToTableWithLabel(table, FractalLacunarity, "Lacunarity");
 
                 // Gain
-                FractalGain = new NumericStepper { Value = 0.5, DecimalPlaces = 2, Increment = 0.1 };
+                FractalGain = new NumericStepper {Value = 0.5, DecimalPlaces = 2, Increment = 0.1};
                 FractalGain.ValueChanged += Generate;
                 AddToTableWithLabel(table, FractalGain, "Gain");
 
                 // Weighted Strength
-                FractalWeightedStrength = new NumericStepper { Value = 0.0, DecimalPlaces = 2, Increment = 0.1 };
+                FractalWeightedStrength = new NumericStepper {Value = 0.0, DecimalPlaces = 2, Increment = 0.1};
                 FractalWeightedStrength.ValueChanged += Generate;
                 AddToTableWithLabel(table, FractalWeightedStrength, "Weighted Strength");
 
                 // Ping Pong Strength
-                FractalPingPongStrength = new NumericStepper { Value = 2.0, DecimalPlaces = 2, Increment = 0.1 };
+                FractalPingPongStrength = new NumericStepper {Value = 2.0, DecimalPlaces = 2, Increment = 0.1};
                 FractalPingPongStrength.ValueChanged += Generate;
                 AddToTableWithLabel(table, FractalPingPongStrength, "Ping Pong Strength");
             }
@@ -260,7 +281,8 @@ public class FastNoiseLiteGUI : Form
                     {
                         CellularDistanceFunction.Items.Add(FormatReadable(name));
                     }
-                    CellularDistanceFunction.SelectedIndex = (int)FastNoiseLite.CellularDistanceFunction.EuclideanSq;
+
+                    CellularDistanceFunction.SelectedIndex = (int) FastNoiseLite.CellularDistanceFunction.EuclideanSq;
                     CellularDistanceFunction.SelectedIndexChanged += Generate;
                     AddToTableWithLabel(table, CellularDistanceFunction, "Distance Function");
                 }
@@ -272,13 +294,14 @@ public class FastNoiseLiteGUI : Form
                     {
                         CellularReturnType.Items.Add(FormatReadable(name));
                     }
-                    CellularReturnType.SelectedIndex = (int)FastNoiseLite.CellularReturnType.Distance;
+
+                    CellularReturnType.SelectedIndex = (int) FastNoiseLite.CellularReturnType.Distance;
                     CellularReturnType.SelectedIndexChanged += Generate;
                     AddToTableWithLabel(table, CellularReturnType, "Return Type");
                 }
 
                 // Jitter
-                CellularJitter = new NumericStepper() { Value = 1.0, DecimalPlaces = 2, Increment = 0.1 };
+                CellularJitter = new NumericStepper() {Value = 1.0, DecimalPlaces = 2, Increment = 0.1};
                 CellularJitter.ValueChanged += Generate;
                 AddToTableWithLabel(table, CellularJitter, "Jitter");
             }
@@ -295,6 +318,7 @@ public class FastNoiseLiteGUI : Form
                     {
                         DomainWarp.Items.Add(FormatReadable(name));
                     }
+
                     DomainWarp.SelectedIndex = 0;
                     DomainWarp.SelectedIndexChanged += OnUIUpdate;
                     AddToTableWithLabel(table, DomainWarp, "Type");
@@ -307,18 +331,19 @@ public class FastNoiseLiteGUI : Form
                     {
                         DomainWarpRotationType3D.Items.Add(FormatReadable(name));
                     }
-                    DomainWarpRotationType3D.SelectedIndex = (int)FastNoiseLite.RotationType3D.None;
+
+                    DomainWarpRotationType3D.SelectedIndex = (int) FastNoiseLite.RotationType3D.None;
                     DomainWarpRotationType3D.SelectedIndexChanged += OnUIUpdate;
                     AddToTableWithLabel(table, DomainWarpRotationType3D, "Rotation Type 3D");
                 }
 
                 // Amplitude
-                DomainWarpAmplitude = new NumericStepper { Value = 30.0, DecimalPlaces = 2, Increment = 5 };
+                DomainWarpAmplitude = new NumericStepper {Value = 30.0, DecimalPlaces = 2, Increment = 5};
                 DomainWarpAmplitude.ValueChanged += Generate;
                 AddToTableWithLabel(table, DomainWarpAmplitude, "Amplitude");
 
                 // Frequency
-                DomainWarpFrequency = new NumericStepper { Value = 0.005, DecimalPlaces = 3, Increment = 0.005 };
+                DomainWarpFrequency = new NumericStepper {Value = 0.005, DecimalPlaces = 3, Increment = 0.005};
                 DomainWarpFrequency.ValueChanged += Generate;
                 AddToTableWithLabel(table, DomainWarpFrequency, "Frequency");
             }
@@ -336,23 +361,24 @@ public class FastNoiseLiteGUI : Form
                         if (!name.StartsWith("DomainWarp")) continue;
                         DomainWarpFractal.Items.Add(FormatReadable(name), name);
                     }
+
                     DomainWarpFractal.SelectedIndex = 0;
                     DomainWarpFractal.SelectedIndexChanged += OnUIUpdate;
                     AddToTableWithLabel(table, DomainWarpFractal, "Fractal Type");
                 }
 
                 // Octaves
-                DomainWarpFractalOctaves = new NumericStepper { Value = 5 };
+                DomainWarpFractalOctaves = new NumericStepper {Value = 5};
                 DomainWarpFractalOctaves.ValueChanged += Generate;
                 AddToTableWithLabel(table, DomainWarpFractalOctaves, "Octaves");
 
                 // Lacunarity
-                DomainWarpFractalLacunarity = new NumericStepper { Value = 2.0, DecimalPlaces = 2, Increment = 0.1 };
+                DomainWarpFractalLacunarity = new NumericStepper {Value = 2.0, DecimalPlaces = 2, Increment = 0.1};
                 DomainWarpFractalLacunarity.ValueChanged += Generate;
                 AddToTableWithLabel(table, DomainWarpFractalLacunarity, "Lacunarity");
 
                 // Gain
-                DomainWarpFractalGain = new NumericStepper { Value = 0.5, DecimalPlaces = 2, Increment = 0.1 };
+                DomainWarpFractalGain = new NumericStepper {Value = 0.5, DecimalPlaces = 2, Increment = 0.1};
                 DomainWarpFractalGain.ValueChanged += Generate;
                 AddToTableWithLabel(table, DomainWarpFractalGain, "Gain");
             }
@@ -361,7 +387,7 @@ public class FastNoiseLiteGUI : Form
             Scrollable scrollPanel = new Scrollable();
             scrollPanel.Content = table;
             scrollPanel.Border = BorderType.None;
-            scrollPanel.Padding = new Padding(0);          
+            scrollPanel.Padding = new Padding(0);
 
             controlPanel.Items.Add(scrollPanel);
 
@@ -372,12 +398,12 @@ public class FastNoiseLiteGUI : Form
                 stack.Spacing = 5;
                 stack.Padding = new Padding(10);
 
-                var save = new Button { Text = "Save" };
+                var save = new Button {Text = "Save"};
                 save.Click += Save;
                 stack.Items.Add(new StackLayoutItem(save));
 
-                var github = new Button { Text = "GitHub" };
-                github.Click += (sender, e) => { Process.Start(new ProcessStartInfo("https://github.com/Auburn/FastNoise") { UseShellExecute = true }); };
+                var github = new Button {Text = "GitHub"};
+                github.Click += (sender, e) => { Process.Start(new ProcessStartInfo("https://github.com/Auburn/FastNoise") {UseShellExecute = true}); };
                 stack.Items.Add(new StackLayoutItem(github));
 
                 controlPanel.Items.Add(stack);
@@ -404,11 +430,11 @@ public class FastNoiseLiteGUI : Form
                     column.Orientation = Orientation.Vertical;
 
                     // Time
-                    Time = new Label { Text = "Time (ms): N/A" };
+                    Time = new Label {Text = "Time (ms): N/A"};
                     column.Items.Add(new StackLayoutItem(Time));
 
                     // Mean
-                    Mean = new Label { Text = "Mean: N/A" };
+                    Mean = new Label {Text = "Mean: N/A"};
                     column.Items.Add(new StackLayoutItem(Mean));
 
                     infoPane.Items.Add(column);
@@ -420,11 +446,11 @@ public class FastNoiseLiteGUI : Form
                     column.Orientation = Orientation.Vertical;
 
                     // Time
-                    Min = new Label { Text = "Min: N/A" };
+                    Min = new Label {Text = "Min: N/A"};
                     column.Items.Add(new StackLayoutItem(Min));
 
                     // Mean
-                    Max = new Label { Text = "Max: N/A" };
+                    Max = new Label {Text = "Max: N/A"};
                     column.Items.Add(new StackLayoutItem(Max));
 
                     infoPane.Items.Add(column);
@@ -463,38 +489,38 @@ public class FastNoiseLiteGUI : Form
             var genNoise = new FastNoiseLite();
             var warpNoise = new FastNoiseLite();
 
-            int w = (int)PreviewWidth.Value;
-            int h = (int)PreviewHeight.Value;
+            int w = (int) PreviewWidth.Value;
+            int h = (int) PreviewHeight.Value;
 
             if (w <= 0 || h <= 0)
             {
                 return;
             }
 
-            genNoise.SetNoiseType((FastNoiseLite.NoiseType)NoiseType.SelectedIndex);
-            genNoise.SetRotationType3D((FastNoiseLite.RotationType3D)RotationType3D.SelectedIndex);
-            genNoise.SetSeed((int)Seed.Value);
-            genNoise.SetFrequency((float)Frequency.Value);
-            genNoise.SetFractalType((FastNoiseLite.FractalType)FractalType.SelectedIndex);
-            genNoise.SetFractalOctaves((int)FractalOctaves.Value);
-            genNoise.SetFractalLacunarity((float)FractalLacunarity.Value);
-            genNoise.SetFractalGain((float)FractalGain.Value);
-            genNoise.SetFractalWeightedStrength((float)FractalWeightedStrength.Value);
-            genNoise.SetFractalPingPongStrength((float)FractalPingPongStrength.Value);
+            genNoise.SetNoiseType((FastNoiseLite.NoiseType) NoiseType.SelectedIndex);
+            genNoise.SetRotationType3D((FastNoiseLite.RotationType3D) RotationType3D.SelectedIndex);
+            genNoise.SetSeed((int) Seed.Value);
+            genNoise.SetFrequency((float) Frequency.Value);
+            genNoise.SetFractalType((FastNoiseLite.FractalType) FractalType.SelectedIndex);
+            genNoise.SetFractalOctaves((int) FractalOctaves.Value);
+            genNoise.SetFractalLacunarity((float) FractalLacunarity.Value);
+            genNoise.SetFractalGain((float) FractalGain.Value);
+            genNoise.SetFractalWeightedStrength((float) FractalWeightedStrength.Value);
+            genNoise.SetFractalPingPongStrength((float) FractalPingPongStrength.Value);
 
-            genNoise.SetCellularDistanceFunction((FastNoiseLite.CellularDistanceFunction)CellularDistanceFunction.SelectedIndex);
-            genNoise.SetCellularReturnType((FastNoiseLite.CellularReturnType)CellularReturnType.SelectedIndex);
-            genNoise.SetCellularJitter((float)CellularJitter.Value);
+            genNoise.SetCellularDistanceFunction((FastNoiseLite.CellularDistanceFunction) CellularDistanceFunction.SelectedIndex);
+            genNoise.SetCellularReturnType((FastNoiseLite.CellularReturnType) CellularReturnType.SelectedIndex);
+            genNoise.SetCellularJitter((float) CellularJitter.Value);
 
-            warpNoise.SetSeed((int)Seed.Value);
-            warpNoise.SetDomainWarpType((FastNoiseLite.DomainWarpType)DomainWarp.SelectedIndex - 1);
-            warpNoise.SetRotationType3D((FastNoiseLite.RotationType3D)DomainWarpRotationType3D.SelectedIndex);
-            warpNoise.SetDomainWarpAmp((float)DomainWarpAmplitude.Value);
-            warpNoise.SetFrequency((float)DomainWarpFrequency.Value);
-            warpNoise.SetFractalType((FastNoiseLite.FractalType)Enum.Parse(typeof(FastNoiseLite.FractalType), DomainWarpFractal.SelectedKey));
-            warpNoise.SetFractalOctaves((int)DomainWarpFractalOctaves.Value);
-            warpNoise.SetFractalLacunarity((float)DomainWarpFractalLacunarity.Value);
-            warpNoise.SetFractalGain((float)DomainWarpFractalGain.Value);
+            warpNoise.SetSeed((int) Seed.Value);
+            warpNoise.SetDomainWarpType((FastNoiseLite.DomainWarpType) DomainWarp.SelectedIndex - 1);
+            warpNoise.SetRotationType3D((FastNoiseLite.RotationType3D) DomainWarpRotationType3D.SelectedIndex);
+            warpNoise.SetDomainWarpAmp((float) DomainWarpAmplitude.Value);
+            warpNoise.SetFrequency((float) DomainWarpFrequency.Value);
+            warpNoise.SetFractalType((FastNoiseLite.FractalType) Enum.Parse(typeof(FastNoiseLite.FractalType), DomainWarpFractal.SelectedKey));
+            warpNoise.SetFractalOctaves((int) DomainWarpFractalOctaves.Value);
+            warpNoise.SetFractalLacunarity((float) DomainWarpFractalLacunarity.Value);
+            warpNoise.SetFractalGain((float) DomainWarpFractalGain.Value);
 
             if (ImageData.Length != w * h)
             {
@@ -540,7 +566,7 @@ public class FastNoiseLiteGUI : Form
                             if (warp)
                                 warpNoise.DomainWarp(ref xf, ref yf);
 
-                                noise = genNoise.GetNoise(xf, yf);
+                            noise = genNoise.GetNoise(xf, yf);
                         }
 
                         avg += noise;
@@ -549,14 +575,19 @@ public class FastNoiseLiteGUI : Form
                         noiseValues[index++] = noise;
                     }
                 }
+
                 sw.Stop();
 
                 avg /= index - 1;
                 float scale = 255 / (maxN - minN);
-
+                
                 for (var i = 0; i < noiseValues.Length; i++)
                 {
-                    int value = (int)MathF.Round(Math.Clamp((noiseValues[i] - minN) * scale, 0, 255));
+                    int value;
+                    if (AutoLevels.Checked.Value)
+                        value = (int) MathF.Round(Math.Clamp(((noiseValues[i] / 2) * (float) Contrast.Value + 0.5f + (float)Brightness.Value) * 255, 0, 255));
+                    else
+                        value = (int)MathF.Round(Math.Clamp((noiseValues[i] - minN) * scale, 0, 255));;
 
                     if (invert)
                         value = 255 - value;
@@ -588,22 +619,23 @@ public class FastNoiseLiteGUI : Form
                         yf -= y;
                         zf -= zPos;
 
-                        avg += (float)(xf + yf);
-                        maxN = Math.Max(maxN, (float)Math.Max(xf, yf));
-                        minN = Math.Min(minN, (float)Math.Min(xf, yf));
+                        avg += (float) (xf + yf);
+                        maxN = Math.Max(maxN, (float) Math.Max(xf, yf));
+                        minN = Math.Min(minN, (float) Math.Min(xf, yf));
 
-                        noiseValues[index++] = (float)xf;
-                        noiseValues[index++] = (float)yf;
+                        noiseValues[index++] = (float) xf;
+                        noiseValues[index++] = (float) yf;
 
                         if (get3d)
                         {
-                            avg += (float)zf;
-                            maxN = Math.Max(maxN, (float)zf);
-                            minN = Math.Min(minN, (float)zf);
-                            noiseValues[index++] = (float)zf;
+                            avg += (float) zf;
+                            maxN = Math.Max(maxN, (float) zf);
+                            minN = Math.Min(minN, (float) zf);
+                            noiseValues[index++] = (float) zf;
                         }
                     }
                 }
+
                 sw.Stop();
 
                 if (get3d)
@@ -657,39 +689,47 @@ public class FastNoiseLiteGUI : Form
             Max.Text = "Max: " + maxN.ToString();
 
             // Sets the client (inner) size of the window for your content
-            ClientSize = new Size(Math.Max((int)PreviewWidth.Value, 768), Math.Max((int)PreviewHeight.Value, 768)) + windowSizeOffset;
+            ClientSize = new Size(Math.Max((int) PreviewWidth.Value, 768), Math.Max((int) PreviewHeight.Value, 768)) + windowSizeOffset;
 
             if (isScrolling)
             {
                 await Task.Delay(50);
                 try
                 {
-                    zPos += ((float)Frequency.Value) * 100.0f;
+                    zPos += ((float) Frequency.Value) * 100.0f;
                 }
-                catch (Exception ex) { MessageBox.Show("Frequency error: " + ex.ToString()); }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("Frequency error: " + ex.ToString());
+                }
             }
-        }
-        while (isScrolling);
+        } while (isScrolling);
     }
 
     private void OnUp(object sender, EventArgs e)
     {
         try
         {
-            zPos += ((float)Frequency.Value) * 100.0f;
+            zPos += ((float) Frequency.Value) * 100.0f;
             Generate(sender, e);
         }
-        catch (Exception ex) { MessageBox.Show("Frequency error: " + ex.ToString()); }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Frequency error: " + ex.ToString());
+        }
     }
 
     private void OnDown(object sender, EventArgs e)
     {
         try
         {
-            zPos -= ((float)Frequency.Value) * 100.0f;
+            zPos -= ((float) Frequency.Value) * 100.0f;
             Generate(sender, e);
         }
-        catch (Exception ex) { MessageBox.Show("Frequency error: " + ex.ToString()); }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Frequency error: " + ex.ToString());
+        }
     }
 
     private void OnScroll(object sender, EventArgs e)
@@ -700,6 +740,10 @@ public class FastNoiseLiteGUI : Form
 
     private void OnUIUpdate(object sender = null, EventArgs e = null)
     {
+        var autoLevels = AutoLevels.Checked == true;
+        Brightness.Enabled = !autoLevels;
+        Contrast.Enabled = !autoLevels;
+        
         // 3D controls
         var is3d = Is3D.Checked == true;
         UpButton.Enabled = DownButton.Enabled = ScrollButton.Enabled = is3d;
@@ -769,22 +813,29 @@ public class FastNoiseLiteGUI : Form
 
         parent.Rows.Add(new TableRow
         {
-            Cells = {
-                TableLayout.AutoSized(new Label { Text = label, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Width = 130 }),
+            Cells =
+            {
+                TableLayout.AutoSized(new Label {Text = label, TextAlignment = TextAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Width = 130}),
                 new TableCell(me)
             }
         });
     }
+
     private void AddHeadingToTable(TableLayout parent, string label)
     {
         Font bold = new Font(new Label().Font.Family, new Label().Font.Size, FontStyle.Bold);
 
-        parent.Rows.Add(new TableRow { Cells = { 
-            new Label { Text = label + "", Font = bold, Wrap = WrapMode.None, VerticalAlignment = VerticalAlignment.Center, Width = 130 } } });
+        parent.Rows.Add(new TableRow
+        {
+            Cells =
+            {
+                new Label {Text = label + "", Font = bold, Wrap = WrapMode.None, VerticalAlignment = VerticalAlignment.Center, Width = 130}
+            }
+        });
     }
 
     private string FormatReadable(string enumName)
     {
         return Regex.Replace(Regex.Replace(enumName, "([a-z])([A-Z0-9])", "$1 $2"), "([a-z0-9])([A-Z][a-z])", "$1 $2");
-    }    
+    }
 }
