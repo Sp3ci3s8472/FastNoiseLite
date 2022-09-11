@@ -584,7 +584,7 @@ public class FastNoiseLiteGUI : Form
                 for (var i = 0; i < noiseValues.Length; i++)
                 {
                     int value;
-                    if (AutoLevels.Checked.Value)
+                    if (!AutoLevels.Checked.Value)
                         value = (int) MathF.Round(Math.Clamp(((noiseValues[i] / 2) * (float) Contrast.Value + 0.5f + (float)Brightness.Value) * 255, 0, 255));
                     else
                         value = (int)MathF.Round(Math.Clamp((noiseValues[i] - minN) * scale, 0, 255));;
