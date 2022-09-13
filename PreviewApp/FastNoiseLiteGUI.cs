@@ -538,6 +538,9 @@ public class FastNoiseLiteGUI : Form
             // Timer
             Stopwatch sw = new Stopwatch();
 
+            float mapAndBrightness = 0.5f + (float)Brightness.Value;
+            float mapAndContrast = 0.5f * (float) Contrast.Value;
+            
             int index = 0;
             if (VisualiseDomainWarp.Checked != true)
             {
@@ -570,8 +573,20 @@ public class FastNoiseLiteGUI : Form
                         }
 
                         avg += noise;
-                        maxN = Math.Max(maxN, noise);
-                        minN = Math.Min(minN, noise);
+
+                        if (!AutoLevels.Checked.Value)
+                        {
+                            // Map to 0-1 and apply brightness / contrast 
+                            noise = noise* mapAndContrast + mapAndBrightness;
+                            maxN = Math.Max(maxN, noise);
+                            minN = Math.Min(minN, noise);
+                        }
+                        else
+                        {
+                            maxN = Math.Max(maxN, noise);
+                            minN = Math.Min(minN, noise);
+                        }
+
                         noiseValues[index++] = noise;
                     }
                 }
@@ -580,12 +595,18 @@ public class FastNoiseLiteGUI : Form
 
                 avg /= index - 1;
                 float scale = 255 / (maxN - minN);
-                
-                for (var i = 0; i < noiseValues.Length; i++)
+
+                if (!AutoLevels.Checked.Value)
+                {
+                    maxN = Math.Min(1, maxN);
+                    minN = Math.Max(0, minN);
+                }
+
+                for (int i = 0; i < noiseValues.Length; i++)
                 {
                     int value;
                     if (!AutoLevels.Checked.Value)
-                        value = (int) MathF.Round(Math.Clamp(((noiseValues[i] / 2) * (float) Contrast.Value + 0.5f + (float)Brightness.Value) * 255, 0, 255));
+                        value = (int) MathF.Round(Math.Clamp(noiseValues[i] * 255, 0, 255));
                     else
                         value = (int)MathF.Round(Math.Clamp((noiseValues[i] - minN) * scale, 0, 255));;
 
